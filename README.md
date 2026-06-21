@@ -4,7 +4,7 @@ Ein schlankes, offline-fähiges Dashboard zur Verfolgung aller **93 ISO 27001:20
 
 ## Screenshot
 
-![Dashboard Screenshot](assets/Dashboard%20Screenshot.jpg)
+![Dashboard Screenshot](assets/Dashboard-Screenshot.jpg)
 
 ## Verwendung
 
