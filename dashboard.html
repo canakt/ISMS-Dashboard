@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISMS Control Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8fafc;--surface:#fff;--surface2:#f1f5f9;--border:#e2e8f0;
+  --text:#0f172a;--text2:#64748b;--text3:#94a3b8;
+  --green-bg:#dcfce7;--green-text:#15803d;--green-border:#86efac;
+  --yellow-bg:#fef3c7;--yellow-text:#92400e;--yellow-border:#fcd34d;
+  --red-bg:#fee2e2;--red-text:#b91c1c;--red-border:#fca5a5;
+  --blue-bg:#dbeafe;--blue-text:#1d4ed8;
+  --purple-bg:#ede9fe;--purple-text:#6d28d9;
+  --amber-bg:#fef3c7;--amber-text:#92400e;
+  --gray-bg:#f1f5f9;--gray-text:#475569;
+  --accent:#3b82f6;--accent-dark:#2563eb;
+  --header-h:72px;
+  --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#334155;
+    --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+    --green-bg:#14532d;--green-text:#86efac;--green-border:#166534;
+    --yellow-bg:#78350f;--yellow-text:#fcd34d;--yellow-border:#92400e;
+    --red-bg:#7f1d1d;--red-text:#fca5a5;--red-border:#b91c1c;
+    --blue-bg:#1e3a5f;--blue-text:#93c5fd;
+    --purple-bg:#2e1065;--purple-text:#c4b5fd;
+    --amber-bg:#78350f;--amber-text:#fcd34d;
+    --gray-bg:#334155;--gray-text:#cbd5e1;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+
+/* HEADER */
+#header{position:sticky;top:0;z-index:100;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:var(--header-h);display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow)}
+#header h1{font-size:18px;font-weight:700;color:var(--text)}
+#header small{display:block;font-size:12px;color:var(--text2);font-weight:400;margin-top:2px}
+#save-indicator{font-size:12px;color:var(--green-text);opacity:0;transition:opacity .3s;text-align:right}
+#save-indicator.show{opacity:1}
+#save-indicator span{display:block;color:var(--text3);font-size:11px}
+
+/* MAIN */
+main{padding:24px;max-width:1400px;margin:0 auto}
+
+/* STATS */
+#stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.stat-card .label{font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.stat-card .value{font-size:28px;font-weight:700;margin-top:4px;color:var(--text)}
+.stat-card .pct{font-size:13px;color:var(--text2);margin-top:2px}
+.stat-card.green .value{color:var(--green-text)}
+.stat-card.yellow .value{color:var(--yellow-text)}
+.stat-card.red .value{color:var(--red-text)}
+
+/* NIS2 GRID */
+#nis2-section{margin-bottom:24px}
+#nis2-section h2{font-size:15px;font-weight:600;margin-bottom:12px;color:var(--text)}
+#nis2-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.nis2-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:border-color .15s,box-shadow .15s;box-shadow:var(--shadow)}
+.nis2-card:hover{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.nis2-card.active{border-color:var(--accent);background:var(--blue-bg)}
+.nis2-card .art{font-size:11px;color:var(--text3);font-weight:500}
+.nis2-card .name{font-size:13px;font-weight:600;color:var(--text);margin:2px 0 8px}
+.nis2-card .rag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-bottom:8px}
+.rag-green{background:var(--green-bg);color:var(--green-text)}
+.rag-yellow{background:var(--yellow-bg);color:var(--yellow-text)}
+.rag-red{background:var(--red-bg);color:var(--red-text)}
+.progress-bar{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.progress-bar-fill{height:100%;border-radius:2px;transition:width .3s}
+.progress-bar-fill.green{background:var(--green-text)}
+.progress-bar-fill.yellow{background:var(--yellow-text)}
+.progress-bar-fill.red{background:var(--red-text)}
+.progress-label{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* TOOLBAR */
+#toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--surface2);border-color:var(--text3)}
+.btn.danger{color:var(--red-text);border-color:var(--red-border)}
+.btn.danger:hover{background:var(--red-bg)}
+#count-label{margin-left:auto;font-size:13px;color:var(--text2)}
+
+/* FILTER BAR */
+#filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+#search-input{padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;width:220px;outline:none;transition:border-color .15s}
+#search-input:focus{border-color:var(--accent)}
+#search-input::placeholder{color:var(--text3)}
+.filter-group{display:flex;gap:4px}
+.filter-btn{padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
+.filter-btn:hover{background:var(--surface2)}
+.filter-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+select.filter-select{padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;cursor:pointer;outline:none;appearance:auto}
+select.filter-select:focus{border-color:var(--accent)}
+
+/* TABLE */
+#table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--surface2)}
+th{padding:10px 14px;text-align:left;font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:0;vertical-align:top}
+.row-main{display:flex;align-items:center;padding:10px 14px;gap:10px;min-height:44px}
+tr:not(:last-child) .row-main{border-bottom:1px solid var(--border)}
+.col-id{font-size:12px;font-weight:600;color:var(--text2);min-width:36px}
+.col-name{flex:1;font-size:13px;color:var(--text)}
+.col-kat{min-width:90px}
+.col-nis2{min-width:120px;display:flex;gap:4px;flex-wrap:wrap}
+.col-status{min-width:120px}
+.col-expand{min-width:32px;text-align:right}
+.badge-kat{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.kat-O{background:var(--blue-bg);color:var(--blue-text)}
+.kat-P{background:var(--gray-bg);color:var(--gray-text)}
+.kat-Y{background:var(--amber-bg);color:var(--amber-text)}
+.kat-T{background:var(--purple-bg);color:var(--purple-text)}
+.badge-nis2{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.status-badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;cursor:pointer;user-select:none;white-space:nowrap;transition:opacity .15s}
+.status-badge:hover{opacity:.8}
+.s-Umgesetzt{background:var(--green-bg);color:var(--green-text)}
+.s-Teilweise{background:var(--yellow-bg);color:var(--yellow-text)}
+.s-Nicht{background:var(--red-bg);color:var(--red-text)}
+.expand-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px;line-height:1;transition:transform .2s,color .15s;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px}
+.expand-btn:hover{background:var(--surface2);color:var(--text)}
+.expand-btn.open{transform:rotate(180deg)}
+.expand-row{display:none;background:var(--surface2);border-bottom:1px solid var(--border);padding:14px 16px 16px 60px}
+.expand-row.open{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}
+.expand-field{display:flex;flex-direction:column;gap:4px}
+.expand-field.span2{grid-column:1/-1}
+.expand-field label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
+.expand-field input,.expand-field textarea{padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s;resize:vertical;width:100%}
+.expand-field textarea{min-height:56px}
+.expand-field input:focus,.expand-field textarea:focus{border-color:var(--accent)}
+.meta-row{display:flex;gap:12px;flex-wrap:wrap}
+.meta-row .expand-field{flex:1;min-width:150px}
+
+/* EMPTY STATE */
+#empty-state{text-align:center;padding:48px;color:var(--text2);display:none}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+@media(max-width:900px){
+  #stats-row{grid-template-columns:repeat(2,1fr)}
+  #nis2-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  #filter-bar{flex-direction:column;align-items:flex-start}
+  .expand-row.open{grid-template-columns:1fr}
+  .meta-row{flex-direction:column}
+}
+@media(max-width:600px){
+  main{padding:12px}
+  #stats-row{grid-template-columns:1fr 1fr}
+  .col-kat,.col-nis2{display:none}
+}
+</style>
+</head>
+<body>
+
+<header id="header">
+  <div>
+    <h1>ISMS Control Dashboard</h1>
+    <small>ISO 27001:2022 Annex A · NIS2 Art. 21 Mapping</small>
+  </div>
+  <div id="save-indicator">
+    ✓ Gespeichert
+    <span id="save-time"></span>
+  </div>
+</header>
+
+<main>
+  <div id="stats-row">
+    <div class="stat-card">
+      <div class="label">Gesamt</div>
+      <div class="value" id="stat-total">93</div>
+      <div class="pct">ISO 27001:2022 Controls</div>
+    </div>
+    <div class="stat-card green">
+      <div class="label">Umgesetzt</div>
+      <div class="value" id="stat-green">0</div>
+      <div class="pct" id="pct-green">0 %</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="label">Teilweise</div>
+      <div class="value" id="stat-yellow">0</div>
+      <div class="pct" id="pct-yellow">0 %</div>
+    </div>
+    <div class="stat-card red">
+      <div class="label">Offen</div>
+      <div class="value" id="stat-red">93</div>
+      <div class="pct" id="pct-red">100 %</div>
+    </div>
+  </div>
+
+  <section id="nis2-section">
+    <h2>NIS2 Art. 21 Übersicht</h2>
+    <div id="nis2-grid"></div>
+  </section>
+
+  <div id="toolbar">
+    <button class="btn" onclick="exportCSV()">↓ CSV exportieren</button>
+    <button class="btn" onclick="document.getElementById('csv-file').click()" title="Excel-CSV direkt importierbar (Datei → Speichern unter → CSV UTF-8)">↑ CSV importieren</button>
+    <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="importCSV(event)">
+    <button class="btn danger" onclick="resetAll()">Zurücksetzen</button>
+    <span id="count-label"></span>
+  </div>
+
+  <div id="filter-bar">
+    <input type="text" id="search-input" placeholder="Control-ID oder Name suchen…" oninput="applyFilters()">
+    <div class="filter-group" id="status-filters">
+      <button class="filter-btn active" data-val="" onclick="setStatusFilter(this)">Alle</button>
+      <button class="filter-btn" data-val="Umgesetzt" onclick="setStatusFilter(this)">Umgesetzt</button>
+      <button class="filter-btn" data-val="Teilweise" onclick="setStatusFilter(this)">Teilweise</button>
+      <button class="filter-btn" data-val="Nicht umgesetzt" onclick="setStatusFilter(this)">Offen</button>
+    </div>
+    <select class="filter-select" id="kat-filter" onchange="applyFilters()">
+      <option value="">Alle Kategorien</option>
+      <option value="O">Organisatorisch</option>
+      <option value="P">Personell</option>
+      <option value="Y">Physisch</option>
+      <option value="T">Technisch</option>
+    </select>
+    <select class="filter-select" id="nis2-filter" onchange="applyFilters()">
+      <option value="">Alle NIS2-Artikel</option>
+      <option value="a">Art. 21(2)(a) – Risikoanalyse</option>
+      <option value="b">Art. 21(2)(b) – Incident Handling</option>
+      <option value="c">Art. 21(2)(c) – BCM &amp; Disaster Recovery</option>
+      <option value="d">Art. 21(2)(d) – Lieferkettensicherheit</option>
+      <option value="e">Art. 21(2)(e) – Sichere Entwicklung</option>
+      <option value="f">Art. 21(2)(f) – Wirksamkeitsbewertung</option>
+      <option value="g">Art. 21(2)(g) – Schulung &amp; Cyber-Hygiene</option>
+      <option value="h">Art. 21(2)(h) – Kryptographie</option>
+      <option value="i">Art. 21(2)(i) – HR, Zugang &amp; Assets</option>
+      <option value="j">Art. 21(2)(j) – MFA &amp; Kommunikation</option>
+    </select>
+  </div>
+
+  <div id="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:50px">ID</th>
+          <th>Control</th>
+          <th style="width:110px">Kategorie</th>
+          <th style="width:140px">NIS2</th>
+          <th style="width:140px">Status</th>
+          <th style="width:40px"></th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+    <div id="empty-state">Keine Controls gefunden.</div>
+  </div>
+</main>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+
+const N2 = {
+  a:{l:'Risikoanalyse',            c:['5.1','5.2','5.3','6.1','8.2','8.3']},
+  b:{l:'Incident Handling',        c:['5.24','5.25','5.26','5.27','5.28']},
+  c:{l:'BCM & Disaster Recovery',  c:['5.29','5.30','8.13','8.14']},
+  d:{l:'Lieferkettensicherheit',   c:['5.19','5.20','5.21','5.22','5.23']},
+  e:{l:'Sichere Entwicklung',      c:['8.25','8.26','8.27','8.28','8.29','8.30','8.31','8.32']},
+  f:{l:'Wirksamkeitsbewertung',    c:['5.35','5.36','8.8']},
+  g:{l:'Schulung & Cyber-Hygiene', c:['6.3','6.8']},
+  h:{l:'Kryptographie',            c:['8.24']},
+  i:{l:'HR, Zugang & Assets',      c:['5.9','5.10','5.11','5.15','5.16','5.17','5.18','6.1','6.2','6.5','8.2','8.5']},
+  j:{l:'MFA & Kommunikation',      c:['5.14','8.5','8.20']}
+};
+
+const CONTROLS_DEF = [
+  ['5.1','Richtlinien zur Informationssicherheit','O'],
+  ['5.2','Rollen und Verantwortlichkeiten','O'],
+  ['5.3','Aufgabentrennung','O'],
+  ['5.4','Managementverantwortlichkeiten','O'],
+  ['5.5','Kontakt mit Behörden','O'],
+  ['5.6','Kontakt mit Interessengruppen','O'],
+  ['5.7','Threat Intelligence','O'],
+  ['5.8','Informationssicherheit im Projektmanagement','O'],
+  ['5.9','Inventar der Informationen und Assets','O'],
+  ['5.10','Akzeptable Nutzung von Informationen und Assets','O'],
+  ['5.11','Rückgabe von Assets','O'],
+  ['5.12','Klassifizierung von Informationen','O'],
+  ['5.13','Kennzeichnung von Informationen','O'],
+  ['5.14','Informationsübertragung','O'],
+  ['5.15','Zugriffskontrolle','O'],
+  ['5.16','Identitätsmanagement','O'],
+  ['5.17','Authentifizierungsinformationen','O'],
+  ['5.18','Zugriffsrechte','O'],
+  ['5.19','Informationssicherheit in Lieferantenbeziehungen','O'],
+  ['5.20','Informationssicherheit in Lieferantenvereinbarungen','O'],
+  ['5.21','Informationssicherheit in der IKT-Lieferkette','O'],
+  ['5.22','Überwachung und Management von Lieferantendiensten','O'],
+  ['5.23','Informationssicherheit bei Cloud-Diensten','O'],
+  ['5.24','Planung und Vorbereitung des Incident Managements','O'],
+  ['5.25','Beurteilung und Entscheidung bei Sicherheitsereignissen','O'],
+  ['5.26','Reaktion auf Sicherheitsvorfälle','O'],
+  ['5.27','Lernen aus Sicherheitsvorfällen','O'],
+  ['5.28','Beweissicherung','O'],
+  ['5.29','Informationssicherheit bei Betriebsunterbrechungen','O'],
+  ['5.30','IKT-Bereitschaft für Business Continuity','O'],
+  ['5.31','Gesetzliche und regulatorische Anforderungen','O'],
+  ['5.32','Rechte am geistigen Eigentum','O'],
+  ['5.33','Schutz von Aufzeichnungen','O'],
+  ['5.34','Datenschutz und Schutz personenbezogener Daten','O'],
+  ['5.35','Unabhängige Überprüfung der Informationssicherheit','O'],
+  ['5.36','Einhaltung von Richtlinien und Standards','O'],
+  ['5.37','Dokumentierte Betriebsverfahren','O'],
+  ['6.1','Überprüfung (Screening)','P'],
+  ['6.2','Beschäftigungsbedingungen','P'],
+  ['6.3','Schulung und Training zur Informationssicherheit','P'],
+  ['6.4','Disziplinarverfahren','P'],
+  ['6.5','Verantwortlichkeiten nach Beschäftigungsende','P'],
+  ['6.6','Vertraulichkeits- und Geheimhaltungsvereinbarungen','P'],
+  ['6.7','Fernarbeit','P'],
+  ['6.8','Meldung von Sicherheitsereignissen','P'],
+  ['7.1','Physische Sicherheitsbereiche','Y'],
+  ['7.2','Physischer Zutritt','Y'],
+  ['7.3','Absicherung von Büros und Einrichtungen','Y'],
+  ['7.4','Physische Sicherheitsüberwachung','Y'],
+  ['7.5','Schutz vor physischen und Umweltbedrohungen','Y'],
+  ['7.6','Arbeiten in Sicherheitsbereichen','Y'],
+  ['7.7','Clear Desk und Clear Screen','Y'],
+  ['7.8','Aufstellung und Schutz von Geräten','Y'],
+  ['7.9','Sicherheit von Assets außerhalb des Geländes','Y'],
+  ['7.10','Speichermedien','Y'],
+  ['7.11','Versorgungseinrichtungen','Y'],
+  ['7.12','Verkabelungssicherheit','Y'],
+  ['7.13','Gerätewartung','Y'],
+  ['7.14','Sichere Entsorgung oder Wiederverwendung von Geräten','Y'],
+  ['8.1','Benutzerendgeräte','T'],
+  ['8.2','Privilegierte Zugriffsrechte','T'],
+  ['8.3','Einschränkung des Informationszugriffs','T'],
+  ['8.4','Zugang zum Quellcode','T'],
+  ['8.5','Sichere Authentifizierung','T'],
+  ['8.6','Kapazitätsmanagement','T'],
+  ['8.7','Schutz vor Schadsoftware','T'],
+  ['8.8','Management technischer Schwachstellen','T'],
+  ['8.9','Konfigurationsmanagement','T'],
+  ['8.10','Löschung von Informationen','T'],
+  ['8.11','Datenmaskierung','T'],
+  ['8.12','Verhinderung von Datenlecks (DLP)','T'],
+  ['8.13','Informations-Backup','T'],
+  ['8.14','Redundanz von Informationsverarbeitungseinrichtungen','T'],
+  ['8.15','Protokollierung','T'],
+  ['8.16','Überwachungsaktivitäten','T'],
+  ['8.17','Zeitsynchronisation','T'],
+  ['8.18','Nutzung privilegierter Hilfsprogramme','T'],
+  ['8.19','Installation von Software auf Betriebssystemen','T'],
+  ['8.20','Netzwerksicherheit','T'],
+  ['8.21','Sicherheit von Netzwerkdiensten','T'],
+  ['8.22','Netzwerksegmentierung','T'],
+  ['8.23','Web-Filterung','T'],
+  ['8.24','Kryptographie','T'],
+  ['8.25','Sicherer Entwicklungslebenszyklus','T'],
+  ['8.26','Anforderungen an die Anwendungssicherheit','T'],
+  ['8.27','Sichere System-Architektur und Ingenieursprinzipien','T'],
+  ['8.28','Sicheres Codieren','T'],
+  ['8.29','Sicherheitstests in Entwicklung und Abnahme','T'],
+  ['8.30','Ausgelagerte Entwicklung','T'],
+  ['8.31','Trennung von Entwicklungs-, Test- und Produktionsumgebungen','T'],
+  ['8.32','Änderungsmanagement','T'],
+  ['8.33','Testinformationen','T'],
+  ['8.34','Schutz von Informationssystemen bei Audittests','T']
+];
+
+const STATUSES = ['Nicht umgesetzt','Teilweise','Umgesetzt'];
+const KAT_LABEL = {O:'Organisatorisch',P:'Personell',Y:'Physisch',T:'Technisch'};
+
+// Build NIS2 reverse map: control_id → [art keys]
+const NIS2_MAP = {};
+for(const [k,v] of Object.entries(N2)){
+  for(const cid of v.c){
+    if(!NIS2_MAP[cid]) NIS2_MAP[cid]=[];
+    if(!NIS2_MAP[cid].includes(k)) NIS2_MAP[cid].push(k);
+  }
+}
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+
+let state = {};  // id → {status, zweck, massnahmen, verantwortlich, datum, nachweise, notizen}
+
+function initState(){
+  for(const [id] of CONTROLS_DEF){
+    if(!state[id]) state[id]={status:'Nicht umgesetzt',zweck:'',massnahmen:'',verantwortlich:'',datum:'',nachweise:'',notizen:''};
+  }
+}
+
+// ─── PERSIST ────────────────────────────────────────────────────────────────
+
+let saveTimer = null;
+async function save(){
+  const json = JSON.stringify(state);
+  try{ if(window.storage) await window.storage.set('isms_dash_v1', json); }catch(e){}
+  try{ localStorage.setItem('isms_dash_v1', json); }catch(e){}
+  showSaved();
+}
+
+async function loadState(){
+  let d = null;
+  try{ if(window.storage){ const r = await window.storage.get('isms_dash_v1'); if(r) d = JSON.parse(r.value); } }catch(e){}
+  if(!d) try{ const r = localStorage.getItem('isms_dash_v1'); if(r) d = JSON.parse(r); }catch(e){}
+  if(d) state = d;
+}
+
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 300);
+}
+
+function showSaved(){
+  const el = document.getElementById('save-indicator');
+  const t = document.getElementById('save-time');
+  const now = new Date();
+  t.textContent = now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(()=> el.classList.remove('show'), 2500);
+}
+
+// ─── FILTERS ────────────────────────────────────────────────────────────────
+
+let activeFilters = {search:'', status:'', kat:'', nis2:''};
+
+function setStatusFilter(btn){
+  document.querySelectorAll('#status-filters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  activeFilters.status = btn.dataset.val;
+  applyFilters();
+}
+
+function applyFilters(){
+  activeFilters.search = document.getElementById('search-input').value.toLowerCase().trim();
+  activeFilters.kat    = document.getElementById('kat-filter').value;
+  activeFilters.nis2   = document.getElementById('nis2-filter').value;
+  renderTable();
+  updateStats();
+}
+
+function matchesFilters(id, name, kat){
+  const f = activeFilters;
+  if(f.search && !id.toLowerCase().includes(f.search) && !name.toLowerCase().includes(f.search)) return false;
+  if(f.status && state[id].status !== f.status) return false;
+  if(f.kat && kat !== f.kat) return false;
+  if(f.nis2 && !(NIS2_MAP[id]||[]).includes(f.nis2)) return false;
+  return true;
+}
+
+// ─── STATS ──────────────────────────────────────────────────────────────────
+
+function updateStats(){
+  let g=0,y=0,r=0;
+  for(const [id] of CONTROLS_DEF){
+    const s = state[id]?.status || 'Nicht umgesetzt';
+    if(s==='Umgesetzt') g++;
+    else if(s==='Teilweise') y++;
+    else r++;
+  }
+  const total = CONTROLS_DEF.length;
+  document.getElementById('stat-green').textContent = g;
+  document.getElementById('stat-yellow').textContent = y;
+  document.getElementById('stat-red').textContent = r;
+  document.getElementById('pct-green').textContent = pct(g,total)+' %';
+  document.getElementById('pct-yellow').textContent = pct(y,total)+' %';
+  document.getElementById('pct-red').textContent = pct(r,total)+' %';
+  renderNIS2Grid();
+}
+
+function pct(n,total){ return total===0?0:Math.round(n/total*100); }
+
+// ─── NIS2 GRID ──────────────────────────────────────────────────────────────
+
+let activeNIS2 = '';
+
+function renderNIS2Grid(){
+  const grid = document.getElementById('nis2-grid');
+  grid.innerHTML = '';
+  for(const [key, {l,c}] of Object.entries(N2)){
+    const total = c.length;
+    let done=0, partial=0;
+    for(const cid of c){
+      const s = state[cid]?.status || 'Nicht umgesetzt';
+      if(s==='Umgesetzt') done++;
+      else if(s==='Teilweise') partial++;
+    }
+    let rag, ragLabel, ragClass, barClass;
+    if(done===total){ rag='Erfüllt'; ragClass='rag-green'; barClass='green'; }
+    else if(done>0||partial>0){ rag='Teilweise'; ragClass='rag-yellow'; barClass='yellow'; }
+    else{ rag='Lücke'; ragClass='rag-red'; barClass='red'; }
+
+    const card = document.createElement('div');
+    card.className = 'nis2-card'+(activeNIS2===key?' active':'');
+    card.innerHTML = `
+      <div class="art">Art. 21(2)(${key})</div>
+      <div class="name">${l}</div>
+      <span class="rag ${ragClass}">${rag}</span>
+      <div class="progress-bar"><div class="progress-bar-fill ${barClass}" style="width:${pct(done,total)}%"></div></div>
+      <div class="progress-label">${done} / ${total} umgesetzt</div>`;
+    card.onclick = ()=>{
+      if(activeNIS2===key){
+        activeNIS2='';
+        document.getElementById('nis2-filter').value='';
+      } else {
+        activeNIS2=key;
+        document.getElementById('nis2-filter').value=key;
+      }
+      applyFilters();
+    };
+    grid.appendChild(card);
+  }
+}
+
+// ─── TABLE ──────────────────────────────────────────────────────────────────
+
+function renderTable(){
+  const tbody = document.getElementById('table-body');
+  const empty = document.getElementById('empty-state');
+  const openRows = new Set();
+  // preserve open expand rows
+  tbody.querySelectorAll('.expand-row.open').forEach(el=>{
+    openRows.add(el.dataset.id);
+  });
+  tbody.innerHTML = '';
+
+  let count = 0;
+  for(const [id, name, kat] of CONTROLS_DEF){
+    if(!matchesFilters(id, name, kat)) continue;
+    count++;
+    const s = state[id] || {status:'Nicht umgesetzt',verantwortlich:'',notizen:''};
+    const nis2tags = (NIS2_MAP[id]||[]).map(k=>`<span class="badge-nis2">${k}</span>`).join(' ');
+    const statusClass = s.status==='Umgesetzt'?'s-Umgesetzt':s.status==='Teilweise'?'s-Teilweise':'s-Nicht';
+    const isOpen = openRows.has(id);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div class="row-main">
+          <span class="col-id">${id}</span>
+          <span class="col-name">${escHtml(name)}</span>
+          <span class="col-kat"><span class="badge-kat kat-${kat}">${KAT_LABEL[kat]}</span></span>
+          <span class="col-nis2">${nis2tags}</span>
+          <span class="col-status">
+            <span class="status-badge ${statusClass}" data-id="${id}" onclick="cycleStatus('${id}',this)">${escHtml(s.status)}</span>
+          </span>
+          <span class="col-expand">
+            <button class="expand-btn${isOpen?' open':''}" data-id="${id}" onclick="toggleExpand('${id}',this)" title="Details">▼</button>
+          </span>
+        </div>
+        <div class="expand-row${isOpen?' open':''}" data-id="${id}">
+          <div class="expand-field">
+            <label>Zweck / Ziel</label>
+            <textarea placeholder="Was soll dieser Control erreichen?" oninput="updateField('${id}','zweck',this.value)">${escHtml(s.zweck||'')}</textarea>
+          </div>
+          <div class="expand-field">
+            <label>Umsetzungsmaßnahmen</label>
+            <textarea placeholder="Wie wurde er implementiert?" oninput="updateField('${id}','massnahmen',this.value)">${escHtml(s.massnahmen||'')}</textarea>
+          </div>
+          <div class="expand-field span2">
+            <div class="meta-row">
+              <div class="expand-field">
+                <label>Verantwortlicher</label>
+                <input type="text" value="${escAttr(s.verantwortlich||'')}" placeholder="Name / Rolle…" oninput="updateField('${id}','verantwortlich',this.value)">
+              </div>
+              <div class="expand-field">
+                <label>Datum Umsetzung</label>
+                <input type="text" value="${escAttr(s.datum||'')}" placeholder="TT.MM.JJJJ" oninput="updateField('${id}','datum',this.value)">
+              </div>
+              <div class="expand-field" style="flex:2">
+                <label>Nachweise / Referenz</label>
+                <input type="text" value="${escAttr(s.nachweise||'')}" placeholder="Dokument, Ticket, Link…" oninput="updateField('${id}','nachweise',this.value)">
+              </div>
+            </div>
+          </div>
+          <div class="expand-field span2">
+            <label>Kommentar</label>
+            <textarea placeholder="Weitere Anmerkungen…" oninput="updateField('${id}','notizen',this.value)">${escHtml(s.notizen||'')}</textarea>
+          </div>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+
+  empty.style.display = count===0?'block':'none';
+  document.getElementById('count-label').textContent = count+' Controls angezeigt';
+}
+
+function toggleExpand(id, btn){
+  btn.classList.toggle('open');
+  const row = document.querySelector(`.expand-row[data-id="${id}"]`);
+  row.classList.toggle('open');
+}
+
+function cycleStatus(id, badge){
+  const cur = state[id].status;
+  const idx = STATUSES.indexOf(cur);
+  const next = STATUSES[(idx+1)%STATUSES.length];
+  state[id].status = next;
+  badge.textContent = next;
+  badge.className = 'status-badge '+(next==='Umgesetzt'?'s-Umgesetzt':next==='Teilweise'?'s-Teilweise':'s-Nicht');
+  scheduleSave();
+  updateStats();
+}
+
+function updateField(id, field, val){
+  state[id][field] = val;
+  scheduleSave();
+}
+
+// ─── CSV EXPORT ─────────────────────────────────────────────────────────────
+
+function exportCSV(){
+  const cols = ['control_id','control_name','kategorie','nis2_artikel','status','zweck','massnahmen','verantwortlich','datum','nachweise','notizen'];
+  const rows = [cols.join(',')];
+  for(const [id, name, kat] of CONTROLS_DEF){
+    const s = state[id]||{};
+    const row = [
+      id,
+      csvQ(name),
+      KAT_LABEL[kat],
+      (NIS2_MAP[id]||[]).map(k=>'Art.21(2)('+k+')').join('; '),
+      csvQ(s.status||'Nicht umgesetzt'),
+      csvQ(s.zweck||''),
+      csvQ(s.massnahmen||''),
+      csvQ(s.verantwortlich||''),
+      csvQ(s.datum||''),
+      csvQ(s.nachweise||''),
+      csvQ(s.notizen||'')
+    ];
+    rows.push(row.join(','));
+  }
+  const bom = '﻿';
+  const blob = new Blob([bom+rows.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  a.href=url;
+  a.download=`isms_controls_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.csv`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function csvQ(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }
+function pad(n){ return String(n).padStart(2,'0'); }
+
+// ─── CSV IMPORT ─────────────────────────────────────────────────────────────
+
+// Maps Excel German headers AND dashboard English keys → internal field names
+function normHeader(raw){
+  const map={
+    'control id':'control_id','control_id':'control_id',
+    'status':'status',
+    'zweck / ziel':'zweck','zweck/ziel':'zweck','zweck':'zweck',
+    'umsetzungsmaßnahmen':'massnahmen','umsetzungsmassnahmen':'massnahmen','massnahmen':'massnahmen',
+    'verantwortlicher':'verantwortlich','verantwortlich':'verantwortlich',
+    'datum umsetzung':'datum','datum_umsetzung':'datum','datum':'datum',
+    'nachweise / referenz':'nachweise','nachweise/referenz':'nachweise','nachweise':'nachweise',
+    'kommentar':'notizen','notizen':'notizen',
+  };
+  return map[raw.toLowerCase().trim()] || raw.toLowerCase().trim();
+}
+
+function importCSV(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const text = e.target.result.replace(/^﻿/,'');
+    const lines = text.split(/\r?\n/).filter(l=>l.trim());
+    if(lines.length<2){ alert('Keine Daten in der CSV-Datei.'); return; }
+    // Auto-detect separator: semicolon (German Excel) or comma
+    const sep = lines[0].includes(';') && !lines[0].includes(',') ? ';' : ',';
+    const rawHeaders = parseCSVLine(lines[0], sep);
+    const headers = rawHeaders.map(normHeader);
+    const fi = f => headers.indexOf(f);  // field index helper
+    const idCol = fi('control_id');
+    if(idCol<0){ alert('Spalte "Control ID" nicht gefunden. Bitte stelle sicher, dass die CSV die richtige Struktur hat.'); return; }
+    let imported=0;
+    for(let i=1;i<lines.length;i++){
+      const cols = parseCSVLine(lines[i], sep);
+      const id = cols[idCol]?.trim();
+      if(!id||!state[id]) continue;
+      const set=f=>{ const idx=fi(f); if(idx>=0&&cols[idx]!=null) state[id][f]=cols[idx].trim(); };
+      const status = cols[fi('status')]?.trim();
+      if(STATUSES.includes(status)) state[id].status = status;
+      ['zweck','massnahmen','verantwortlich','datum','nachweise','notizen'].forEach(set);
+      imported++;
+    }
+    save();
+    renderTable();
+    updateStats();
+    alert(`${imported} Controls importiert.`);
+  };
+  reader.readAsText(file,'UTF-8');
+  evt.target.value='';
+}
+
+function parseCSVLine(line, sep=','){
+  const result=[];
+  let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(inQ){
+      if(ch==='"'&&line[i+1]==='"'){cur+='"';i++;}
+      else if(ch==='"'){inQ=false;}
+      else cur+=ch;
+    } else {
+      if(ch==='"'){inQ=true;}
+      else if(ch===sep){result.push(cur);cur='';}
+      else cur+=ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ─── RESET ──────────────────────────────────────────────────────────────────
+
+function resetAll(){
+  if(!confirm('Alle Daten zurücksetzen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
+  for(const [id] of CONTROLS_DEF){
+    state[id]={status:'Nicht umgesetzt',zweck:'',massnahmen:'',verantwortlich:'',datum:'',nachweise:'',notizen:''};
+  }
+  save();
+  renderTable();
+  updateStats();
+}
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s){ return escHtml(s); }
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+
+(async function init(){
+  await loadState();
+  initState();
+  renderTable();
+  updateStats();
+})();
+</script>
+</body>
+</html>
